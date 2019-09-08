@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+
+    <script type="text/javascript" src="Decoder.js"></script>
+    <script type="text/javascript" src="YUVCanvas.js"></script>
+    <script type="text/javascript" src="Player.js"></script>
+
+    <script type="text/javascript" src="stream.js"></script>
+
+    <script type="text/javascript" src="mp4.js"></script>
+
+
+    <script src="base64.min.js"></script>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+        }
+    </style>
+
+</head>
+<body>
+<canvas id="canvas" style="height: 600px" class="image">抱歉，您的浏览器不支持canvas元素</canvas>
+<script>
+
+    function str2ab(str) {
+        var buf = new ArrayBuffer(str.length * 2); // 2 bytes for each char
+        var bufView = new Uint16Array(buf);
+        for (var i = 0, strLen = str.length; i < strLen; i++) {
+            bufView[i] = str.charCodeAt(i);
+        }
+        return bufView;
+    }
+
+    function decode(avc, data) {
+        var naltype = "invalid frame";
+        //  console.log(data[4]);
+        if (data.length > 4) {
+            if (data[4] == 0x65) {
+                naltype = "I frame";
+            } else if (data[4] == 0x41) {
+                naltype = "P frame";
+            } else if (data[4] == 0x67) {
+                naltype = "SPS";
+            } else if (data[4] == 0x68) {
+                naltype = "PPS";
+            }
+        }
+        // console.log("WSAvcPlayer: Passed " + naltype + " to decoder");
+        /* Decode Pictures */
+        avc.decode(data);
+    }
+
+    var canvas = document.getElementById("canvas");
+
+
+    var avc = new Decoder({
+        useWorker: false,
+        reuseMemory: true,
+        webgl: "webgl",
+        size: {
+            width: 640,
+            height: 368
+        }
+    });
+
+    avc.onPictureDecoded = function (buffer, width, height) {
+        console.log("onPictureDecoded")
+
+        if (!buffer) {
+            return;
+        }
+        var lumaSize = width * height;
+        var chromaSize = lumaSize >> 2;
+
+        canvas.YTexture.fill(buffer.subarray(0, lumaSize));
+        canvas.UTexture.fill(buffer.subarray(lumaSize, lumaSize + chromaSize));
+        canvas.VTexture.fill(buffer.subarray(lumaSize + chromaSize, lumaSize + 2 * chromaSize));
+        canvas.drawScene();
+    };
+
+
+    ws = new WebSocket("ws://" + location.host + "/Api/App/Live")
+    ws.onmessage = function (evt) {
+        var res = Base64.atob(evt.data);
+
+        var data = str2ab(res);
+        // console.log(data);
+
+        // console.log(data.data);
+
+        var date = new Date();
+        rcvtime = date.getTime();
+        decode(avc, data);
+        prevframe = data;
+
+        // console.log(res);
+        // decode(avc,res);
+
+    };
+
+    //显示图片
+    var image = document.createElement("img"); //添加一个img元素
+    //检测浏览器是否支持canvas 该方法是否存在 取得上下文对象
+    if (canvas.getContext) {
+        var context = canvas.getContext('2d'); //2d用单引用括起来
+
+        function start() {
+
+            setTimeout(function () {
+                image.src = "/snapshot.jpg?q=5&id=" + Date.parse(new Date());
+                image.onload = function () {  //这步很重要，只有在图像加载完成后，才能将其绘制到画布上
+                    canvas.width = image.width;
+                    canvas.height = image.height;
+
+                    // canvas.style.width = image.width / 4 + "px";
+                    // canvas.style.height = image.height / 4 + "px";
+                    context.drawImage(image, 0, 0); //起点坐标(5,5)
+
+                    start()
+                };
+            }, 0);
+        }
+
+
+    }
+    // setInterval(function () {
+    //
+    //
+    //     // start()
+    // }, 30);
+
+</script>
+
+</body>
+</html>
