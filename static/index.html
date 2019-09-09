@@ -3,134 +3,135 @@
 <head>
     <meta charset="UTF-8">
 
+    <meta name="viewport"
+          content="initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,width=device-width"/>
     <script type="text/javascript" src="Decoder.js"></script>
     <script type="text/javascript" src="YUVCanvas.js"></script>
     <script type="text/javascript" src="Player.js"></script>
-
-    <script type="text/javascript" src="stream.js"></script>
-
-    <script type="text/javascript" src="mp4.js"></script>
-
-
-    <script src="base64.min.js"></script>
+    <link rel="stylesheet" href="ele.css">
+    <script type="text/javascript" src="base64.min.js"></script>
     <style>
         html, body {
             margin: 0;
             padding: 0;
+            background: rgb(13, 14, 27);
         }
+
     </style>
 
 </head>
 <body>
-<canvas id="canvas" style="height: 600px" class="image">抱歉，您的浏览器不支持canvas元素</canvas>
+<div id="content" style="margin-left: 0px;margin-right: 50px;margin-bottom: 50px;">
+
+
+</div>
+<div id="menu" style="width: 100%;height: 60px;text-align: center;position:fixed;bottom:0px;">
+    <div class="el-button-group" style="height: 60px;  width: 90%; text-align: center;  display: inline-block;">
+
+        <div class="el-button" style="width: 33%;" onclick="sendKey('82')"><i class="el-icon-menu"></i></div>
+        <div class="el-button" style="width: 33%;" onclick="sendKey('3')"><i class="el-icon-s-home"></i></div>
+        <div class="el-button" style="width: 33%;" onclick="sendKey('4')"><i class="el-icon-back"></i></div>
+    </div>
+</div>
 <script>
 
+
+    document.getElementById("content").addEventListener('touchstart', touch, false);
+    document.getElementById("content").addEventListener('touchmove', touch, false);
+    document.getElementById("content").addEventListener('touchend', touch, false);
+
+    function touch(event) {
+        var event = event || window.event;
+
+        console.log(event.touches[0]);
+        switch (event.type) {
+            case "touchstart":
+                break;
+            case "touchend":
+                break;
+            case "touchmove":
+                event.preventDefault();
+                break;
+        }
+    }
+
+    // ws = new WebSocket("ws://" + location.host + "/Api/App/Live");
+    ws = new WebSocket("ws://192.168.137.139:25009/Api/App/Live");
+
+    function sendKey(key) {
+        ws.send(JSON.stringify({
+            "type": "key",
+            "data": key
+        }))
+
+    }
+
     function str2ab(str) {
-        var buf = new ArrayBuffer(str.length * 2); // 2 bytes for each char
-        var bufView = new Uint16Array(buf);
+        var bufView = new Uint8Array(str.length);
         for (var i = 0, strLen = str.length; i < strLen; i++) {
             bufView[i] = str.charCodeAt(i);
         }
         return bufView;
     }
 
-    function decode(avc, data) {
-        var naltype = "invalid frame";
-        //  console.log(data[4]);
-        if (data.length > 4) {
-            if (data[4] == 0x65) {
-                naltype = "I frame";
-            } else if (data[4] == 0x41) {
-                naltype = "P frame";
-            } else if (data[4] == 0x67) {
-                naltype = "SPS";
-            } else if (data[4] == 0x68) {
-                naltype = "PPS";
-            }
-        }
-        // console.log("WSAvcPlayer: Passed " + naltype + " to decoder");
-        /* Decode Pictures */
-        avc.decode(data);
+    function copyUarray(buffer1) {
+        var tmp = new Uint8Array(buffer1.byteLength);
+        tmp.set(new Uint8Array(buffer1), 0);
+        return tmp;
     }
 
-    var canvas = document.getElementById("canvas");
+    function concatUarray(buffer1, buffer2) {
+        var tmp = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
+        tmp.set(new Uint8Array(buffer1), 0);
+        tmp.set(new Uint8Array(buffer2), buffer1.byteLength);
+        return tmp;
+    }
+
+    var last_frame = new Uint8Array(0);
+
+    function decode(avc) {
+        if (last_frame.length > 0) {
+            avc.decode(last_frame);
+            last_frame = new Uint8Array(0);
+        }
+    }
 
 
-    var avc = new Decoder({
-        useWorker: false,
+    var avc = new Player({
+        useWorker: true,
         reuseMemory: true,
         webgl: "webgl",
         size: {
-            width: 640,
-            height: 368
+            width: 0,
+            height: 0
         }
     });
 
-    avc.onPictureDecoded = function (buffer, width, height) {
-        console.log("onPictureDecoded")
-
-        if (!buffer) {
-            return;
-        }
-        var lumaSize = width * height;
-        var chromaSize = lumaSize >> 2;
-
-        canvas.YTexture.fill(buffer.subarray(0, lumaSize));
-        canvas.UTexture.fill(buffer.subarray(lumaSize, lumaSize + chromaSize));
-        canvas.VTexture.fill(buffer.subarray(lumaSize + chromaSize, lumaSize + 2 * chromaSize));
-        canvas.drawScene();
-    };
+    avc.canvas.id = 'device';
+    document.getElementById("content").appendChild(avc.canvas);
+    avc.canvas.style.width = "100%";
 
 
-    ws = new WebSocket("ws://" + location.host + "/Api/App/Live")
+    var fg = String.fromCharCode(0) + String.fromCharCode(0) + String.fromCharCode(0) + String.fromCharCode(1);
     ws.onmessage = function (evt) {
         var res = Base64.atob(evt.data);
+        var packs = res.split(fg);
 
-        var data = str2ab(res);
-        // console.log(data);
-
-        // console.log(data.data);
-
-        var date = new Date();
-        rcvtime = date.getTime();
-        decode(avc, data);
-        prevframe = data;
-
-        // console.log(res);
-        // decode(avc,res);
-
-    };
-
-    //显示图片
-    var image = document.createElement("img"); //添加一个img元素
-    //检测浏览器是否支持canvas 该方法是否存在 取得上下文对象
-    if (canvas.getContext) {
-        var context = canvas.getContext('2d'); //2d用单引用括起来
-
-        function start() {
-
-            setTimeout(function () {
-                image.src = "/snapshot.jpg?q=5&id=" + Date.parse(new Date());
-                image.onload = function () {  //这步很重要，只有在图像加载完成后，才能将其绘制到画布上
-                    canvas.width = image.width;
-                    canvas.height = image.height;
-
-                    // canvas.style.width = image.width / 4 + "px";
-                    // canvas.style.height = image.height / 4 + "px";
-                    context.drawImage(image, 0, 0); //起点坐标(5,5)
-
-                    start()
-                };
-            }, 0);
+        for (var i = 0; i < packs.length; i++) {
+            if (i == 0) {
+                if (packs[i].length != 0) {
+                    var data = str2ab(packs[i]);
+                    last_frame = concatUarray(last_frame, data);
+                    continue;
+                }
+            } else {
+                decode(avc);
+                var data = str2ab(fg + packs[i]);
+                last_frame = copyUarray(data)
+            }
         }
 
-
-    }
-    // setInterval(function () {
-    //
-    //
-    //     // start()
-    // }, 30);
+    };
 
 </script>
 

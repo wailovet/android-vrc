@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"github.com/wailovet/android-vrc/helper"
 	"github.com/wailovet/easycmd"
 	"github.com/wailovet/osmanthuswine/src/core"
@@ -26,8 +27,25 @@ func (that *Live) HandlePong(*melody.Session) {
 	//panic("implement me")
 }
 
-func (that *Live) HandleMessage(*melody.Session, []byte) {
+func (that *Live) HandleMessage(s *melody.Session, data []byte) {
 	//panic("implement me")
+	type event struct {
+		Type string `json:"type"`
+		Data string `json:"data"`
+	}
+
+	e := event{}
+	json.Unmarshal(data, &e)
+
+	log.Println(e.Type, ":", e.Data)
+	switch e.Type {
+	case "key":
+		helper.Keyevent(e.Data, false)
+		break
+	case "keylong":
+		helper.Keyevent(e.Data, true)
+		break
+	}
 }
 
 func (that *Live) HandleMessageBinary(*melody.Session, []byte) {
