@@ -8,16 +8,23 @@ import (
 	"github.com/wailovet/osmanthuswine/src/core"
 	"gopkg.in/olahol/melody.v1"
 	"log"
+	"strconv"
+	"strings"
 )
 
 type Live struct {
 	core.WebSocket
+	w int
+	h int
 }
 
 func (that *Live) HandleConnect(s *melody.Session) {
 	//panic("implement me")
+	//that.w, that.h = helper.GetWmSize()
+	that.w = 0x3FF
+	that.h = 0x3FF
 	s.Set("c", helper.TakeScreenrecord(func(bytes []byte) {
-		log.Println("len:", len(bytes))
+		//log.Println("len:", len(bytes))
 		data := base64.StdEncoding.EncodeToString(bytes)
 		s.Write([]byte(data))
 	}))
@@ -44,6 +51,21 @@ func (that *Live) HandleMessage(s *melody.Session, data []byte) {
 		break
 	case "keylong":
 		helper.Keyevent(e.Data, true)
+		break
+	case "touchstart":
+		touchData := strings.Split(e.Data, ",")
+		x1, _ := strconv.ParseFloat(touchData[0], 64)
+		y1, _ := strconv.ParseFloat(touchData[1], 64)
+		helper.TouchDown(x1, y1, 1)
+		break
+	case "touchmove":
+		touchData := strings.Split(e.Data, ",")
+		x1, _ := strconv.ParseFloat(touchData[0], 64)
+		y1, _ := strconv.ParseFloat(touchData[1], 64)
+		helper.TouchMove(x1, y1, 1)
+		break
+	case "touchend":
+		helper.TouchUp(1)
 		break
 	}
 }

@@ -40,23 +40,39 @@
     document.getElementById("content").addEventListener('touchmove', touch, false);
     document.getElementById("content").addEventListener('touchend', touch, false);
 
+
     function touch(event) {
         var event = event || window.event;
+        if (event.touches[0]) {
+            console.log(event.touches[0]);
+            console.log("x:", event.touches[0].clientX / document.getElementById("content").clientWidth, "y:", event.touches[0].clientY / document.getElementById("content").clientHeight);
+        }
 
-        console.log(event.touches[0]);
         switch (event.type) {
             case "touchstart":
+                ws.send(JSON.stringify({
+                    "type": event.type,
+                    "data": (event.touches[0].clientX / document.getElementById("content").clientWidth) + "," + (event.touches[0].clientY / document.getElementById("content").clientHeight)
+                }));
                 break;
             case "touchend":
+                ws.send(JSON.stringify({
+                    "type": event.type
+                }));
                 break;
             case "touchmove":
+                ws.send(JSON.stringify({
+                    "type": event.type,
+                    "data": (event.touches[0].clientX / document.getElementById("content").clientWidth) + "," + (event.touches[0].clientY / document.getElementById("content").clientHeight)
+                }));
                 event.preventDefault();
                 break;
         }
+
     }
 
-    // ws = new WebSocket("ws://" + location.host + "/Api/App/Live");
-    ws = new WebSocket("ws://192.168.137.139:25009/Api/App/Live");
+    ws = new WebSocket("ws://" + location.host + "/Api/App/Live");
+    // ws = new WebSocket("ws://192.168.137.139:25009/Api/App/Live");
 
     function sendKey(key) {
         ws.send(JSON.stringify({

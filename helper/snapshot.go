@@ -6,15 +6,17 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func GetWmSize() (int, int) {
 	c := easycmd.EasyCmd("bash", "-c", "dumpsys window displays |head -n 3 | grep x")
+	ch := make(chan bool)
 	w := 0
 	h := 0
 
 	c.SetEventEnd(func() {
+		log.Println("GetWmSize,end")
+		ch <- true
 	})
 
 	c.Start(func(data []byte) {
@@ -32,9 +34,7 @@ func GetWmSize() (int, int) {
 
 	})
 
-	for i := 0; i < 5 && w == 0 && h == 0; i++ {
-		time.Sleep(time.Second)
-	}
+	<-ch
 	return w, h
 }
 func TakeScreenrecord(f func([]byte)) *easycmd.Pty {
