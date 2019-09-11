@@ -72,7 +72,7 @@
     }
 
     ws = new WebSocket("ws://" + location.host + "/Api/App/Live");
-    // ws = new WebSocket("ws://192.168.137.139:25009/Api/App/Live");
+    // ws = new WebSocket("ws://192.168.137.91:25009/Api/App/Live");
 
     function sendKey(key) {
         ws.send(JSON.stringify({
@@ -107,6 +107,17 @@
 
     function decode(avc) {
         if (last_frame.length > 0) {
+            var naltype = "error";
+            if (last_frame[4] == 0x65) {
+                naltype = "I frame";
+                console.log(naltype);
+            } else if (last_frame[4] == 0x41) {
+                naltype = "P frame";
+            } else if (last_frame[4] == 0x67) {
+                naltype = "SPS";
+            } else if (last_frame[4] == 0x68) {
+                naltype = "PPS";
+            }
             avc.decode(last_frame);
             last_frame = new Uint8Array(0);
         }
@@ -122,6 +133,11 @@
             height: 0
         }
     });
+    avc.onPictureDecoded = function (buffer, width, height) {
+        console.log("onPictureDecoded")
+
+    }
+
 
     avc.canvas.id = 'device';
     document.getElementById("content").appendChild(avc.canvas);
@@ -143,6 +159,7 @@
             } else {
                 decode(avc);
                 var data = str2ab(fg + packs[i]);
+                // console.log(data)
                 last_frame = copyUarray(data)
             }
         }

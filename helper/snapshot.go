@@ -9,7 +9,7 @@ import (
 )
 
 func GetWmSize() (int, int) {
-	c := easycmd.EasyCmd("bash", "-c", "dumpsys window displays |head -n 3 | grep x")
+	c := easycmd.EasyCmd("dumpsys", "window", "displays")
 	ch := make(chan bool)
 	w := 0
 	h := 0
@@ -20,21 +20,32 @@ func GetWmSize() (int, int) {
 	})
 
 	c.Start(func(data []byte) {
-		s := strings.TrimSpace(string(data))
-		log.Println("getWmSize:", s)
-		s2 := strings.Split(s, " ")
-		s2 = strings.Split(s2[0], "=")
-		if len(s2) > 1 {
-			s3 := strings.Split(s2[1], "x")
-			w, _ = strconv.Atoi(strings.TrimSpace(s3[0]))
-			h, _ = strconv.Atoi(strings.TrimSpace(s3[1]))
-			log.Println("getWmSize:", w, "  |   ", h)
-			c.Close()
+		ss := strings.Split("\n", string(data))
+		for e := range ss {
+			s := strings.TrimSpace(ss[e])
+			log.Println("getWmSize:", s)
+			s2 := strings.Split(s, " ")
+			s2 = strings.Split(s2[0], "=")
+			if len(s2) > 1 {
+				s3 := strings.Split(s2[1], "x")
+				if len(s3) > 1 {
+					wt, err := strconv.Atoi(strings.TrimSpace(s3[0]))
+					ht, err2 := strconv.Atoi(strings.TrimSpace(s3[1]))
+					if err != nil || err2 != nil || ht == 0 || wt == 0 {
+						return
+					}
+					w = wt
+					h = ht
+					c.Close()
+				}
+			}
 		}
 
 	})
 
 	<-ch
+
+	log.Println("getWmSize:", w, "  |   ", h)
 	return w, h
 }
 func TakeScreenrecord(f func([]byte)) *easycmd.Pty {
