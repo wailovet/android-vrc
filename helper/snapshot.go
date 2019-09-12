@@ -20,7 +20,7 @@ func GetWmSize() (int, int) {
 	})
 
 	c.Start(func(data []byte) {
-		ss := strings.Split("\n", string(data))
+		ss := strings.Split(string(data), "\n")
 		for e := range ss {
 			s := strings.TrimSpace(ss[e])
 			log.Println("getWmSize:", s)
@@ -53,7 +53,7 @@ func TakeScreenrecord(f func([]byte)) *easycmd.Pty {
 	sf := h / 600
 	size := fmt.Sprintf("--size=%dx%d", w/sf, h/sf)
 	log.Println("size:", size)
-	c := easycmd.EasyCmd("screenrecord", "--output-format=h264", "--bit-rate=500000", size, "-")
+	c := easycmd.EasyCmd("screenrecord", "--output-format=h264", "--bit-rate=800000", size, "-")
 	//var ch chan bool
 	//c.SetEventEnd(func() {
 	//	ch <- true

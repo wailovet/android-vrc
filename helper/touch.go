@@ -35,7 +35,7 @@ type InputEvent struct {
 }
 
 func sendEvent(type_ uint16, code uint16, value int32) {
-	tf, _ := getDevice("/dev/input/event0")
+	tf, _ := getDevice("/dev/input/event1")
 	_ = binary.Write(tf, binary.LittleEndian, &InputEvent{
 		Type:  type_,
 		Code:  code,
@@ -43,14 +43,20 @@ func sendEvent(type_ uint16, code uint16, value int32) {
 	})
 }
 
+var maxWidth = 1080
+var maxHeight = 1920
+
+func Init() {
+	//easycmd.EasyCmdNotPty("")
+}
 func TouchDown(x float64, y float64, id int32) {
 	x = math.Min(1, math.Max(0, x))
 	y = math.Min(1, math.Max(0, y))
 	sendEvent(EV_ABS, ABS_MT_TRACKING_ID, id)
 	sendEvent(EV_KEY, BTN_TOUCH, 0x00000001)
 	sendEvent(EV_KEY, BTN_TOOL_FINGER, 0x00000001)
-	sendEvent(EV_ABS, ABS_MT_POSITION_X, int32(x*float64(0x000003ff)))
-	sendEvent(EV_ABS, ABS_MT_POSITION_Y, int32(y*float64(0x000003ff)))
+	sendEvent(EV_ABS, ABS_MT_POSITION_X, int32(x*float64(maxWidth)))
+	sendEvent(EV_ABS, ABS_MT_POSITION_Y, int32(y*float64(maxHeight)))
 	sendEvent(EV_ABS, ABS_MT_TOUCH_MAJOR, 5)
 	sendEvent(EV_SYN, SYN_REPORT, 0x00000000)
 }
@@ -67,8 +73,8 @@ func TouchMove(x float64, y float64, id int32) {
 	y = math.Min(1, math.Max(0, y))
 	log.Println("TouchMove:", x, ",", y)
 	sendEvent(EV_ABS, ABS_MT_TRACKING_ID, id)
-	sendEvent(EV_ABS, ABS_MT_POSITION_X, int32(x*float64(0x000003ff)))
-	sendEvent(EV_ABS, ABS_MT_POSITION_Y, int32(y*float64(0x000003ff)))
+	sendEvent(EV_ABS, ABS_MT_POSITION_X, int32(x*float64(maxWidth)))
+	sendEvent(EV_ABS, ABS_MT_POSITION_Y, int32(y*float64(maxHeight)))
 	sendEvent(EV_SYN, SYN_REPORT, 0x00000000)
 }
 
