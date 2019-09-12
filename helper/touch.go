@@ -2,9 +2,12 @@ package helper
 
 import (
 	"encoding/binary"
+	"github.com/wailovet/easycmd"
 	"log"
 	"math"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 )
@@ -34,8 +37,63 @@ type InputEvent struct {
 	Value int32           // event value related to the event type
 }
 
+func init() {
+	ch := make(chan bool)
+	ch2 := make(chan bool)
+	c := easycmd.EasyCmdNotPty("su", "-c", `getevent | grep " 0035 "`)
+	c.Start(func(data []byte) {
+		if strings.Index(string(data), "0035") > 0 {
+			t := strings.Split(string(data), "0035")
+			if len(t) > 1 {
+				t2 := strings.Split(t[0], "\n")
+				if len(t2) > 0 {
+					t3 := t2[len(t2)-1]
+					t4 := strings.TrimSpace(t3)
+					t5 := strings.Split(t4, ":")
+					if len(t5) > 1 {
+						DeviceName = t5[0]
+						c.Close()
+						ch <- true
+
+					}
+				}
+			}
+		}
+	})
+
+	<-ch
+
+	c = easycmd.EasyCmdNotPty("su", "-c", `getevent -p | grep -A 20 "`+DeviceName+`" | grep -A 10 0035`)
+	c.Start(func(data []byte) {
+		lines := strings.Split(string(data), "\n")
+		for e := range lines {
+			if strings.Index(lines[e], "0035") > -1 {
+				t := strings.Split(lines[e], "max")
+				if len(t) > 1 {
+					t2 := strings.Split(t[1], ",")
+					maxWidth, _ = strconv.Atoi(strings.TrimSpace(t2[0]))
+				}
+			}
+			if strings.Index(lines[e], "0036") > -1 {
+				t := strings.Split(lines[e], "max")
+				if len(t) > 1 {
+					t2 := strings.Split(t[1], ",")
+					maxHeight, _ = strconv.Atoi(strings.TrimSpace(t2[0]))
+				}
+			}
+		}
+
+	})
+	c.SetEventEnd(func() {
+		ch2 <- true
+	})
+	<-ch2
+}
+
+var DeviceName = ""
+
 func sendEvent(type_ uint16, code uint16, value int32) {
-	tf, _ := getDevice("/dev/input/event1")
+	tf, _ := getDevice(DeviceName)
 	_ = binary.Write(tf, binary.LittleEndian, &InputEvent{
 		Type:  type_,
 		Code:  code,
@@ -43,8 +101,8 @@ func sendEvent(type_ uint16, code uint16, value int32) {
 	})
 }
 
-var maxWidth = 1080
-var maxHeight = 1920
+var maxWidth = 0
+var maxHeight = 0
 
 func Init() {
 	//easycmd.EasyCmdNotPty("")
